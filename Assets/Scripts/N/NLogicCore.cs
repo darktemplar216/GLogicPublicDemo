@@ -213,7 +213,6 @@ namespace GLogic.N
             float mDetaTimeFloatInSec = (float)(mDeltaTimeInMiliSec / 1000.0f);
 
             UpdateLogicTree();
-            UpdateListenerTree();
             UpdateEvents();
             OnLogicNodeUpdate(mDetaTimeFloatInSec);
             SwapEventQueues();

@@ -41,11 +41,11 @@ namespace GLogic.LMN
     /// </summary>
     public class DemoGameThread
     {
-        private static Thread mWorkingThread = null;
+        private Thread mWorkingThread = null;
         /// <summary>
         /// 我的工作Thread类
         /// </summary>
-        public static Thread WorkingThread { get { return mWorkingThread; } }
+        public Thread WorkingThread { get { return mWorkingThread; } }
 
         /// <summary>
         /// 本线程驱动的逻辑核

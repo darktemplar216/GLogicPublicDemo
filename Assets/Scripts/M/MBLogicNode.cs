@@ -18,22 +18,22 @@ namespace GLogic.M
     public class MBLogicNode : MonoBehaviour, IGLogicNode
     {
 
-        #region MBLogicNode
+        #region MBLogicNode特征
 
         public MBLogicNode()
         {
             mEventQueueForThisFrame = mEventQueueFrameOdd;
             mEventQueueForNextFrame = mEventQueueFrameEven;
         }
-
-        public virtual void OnDestroy()
+        
+        protected virtual void OnDestroy()
         {
             DetachAllSubNodes();
 
             if (ParentNode != null)
             {
                 ParentNode.DetachNode(this);
-            }            
+            }
         }
 
         #endregion
@@ -46,6 +46,7 @@ namespace GLogic.M
         /// 如果使用默认值，那父节点将不缓存这个节点和名字的对应，GetNodeByName将不起效
         /// </summary>
         public virtual int NodeName { get; set; }
+
 
         #endregion
 
@@ -102,15 +103,6 @@ namespace GLogic.M
         /// 逻辑树需不需要更新
         /// </summary>
         public bool IsLogicTreeNeedsUpdate { get; set; }
-
-        #endregion
-
-        #region 消息监听树需不需要更新
-
-        /// <summary>
-        /// 消息监听树需不需要更新
-        /// </summary>
-        public bool IsListenerTreeNeedsUpdate { get; set; }
 
         #endregion
 
@@ -172,29 +164,13 @@ namespace GLogic.M
 
         #endregion
 
-        #region 消息监听器树形结构锁
-
-        private bool mIsListenerTreeLocked = false;
+        #region 消息Id锁
 
         /// <summary>
         /// 1.锁住逻辑树结构，不允许修改Listener部分
-        /// 2.在值为true的时候，AttachListener和DetachListener将形成异步操作
-        /// 3.DispatchEvent 的时候为true
+        /// 2.对应EventId
         /// </summary>
-        public bool IsListenerTreeLocked
-        {
-            get { return mIsListenerTreeLocked; }
-            set
-            {
-                mIsListenerTreeLocked = value;
-
-                for (int i = 0; i < mSubNodes.Count; i++)
-                {
-                    GLogicNodeWrapper wrapper = mSubNodes[i];
-                    wrapper.mLogicNode.IsListenerTreeLocked = value;
-                }
-            }
-        }
+        private List<int> mLockedEventIds = new List<int>(0);
 
         #endregion
 
@@ -227,6 +203,7 @@ namespace GLogic.M
                 {
                     ret = ret.ParentNode;
                 }
+
                 return ret;
             }
         }
@@ -255,10 +232,12 @@ namespace GLogic.M
             /// 目标节点
             /// </summary>
             public IGLogicNode mLogicNode;
+
             /// <summary>
             /// 添加还是删除
             /// </summary>
             public bool mIsAddOrRemove;
+
             /// <summary>
             /// 如果是删除是全部都删除吗
             /// </summary>
@@ -268,17 +247,17 @@ namespace GLogic.M
         /// <summary>
         /// 子节点列表
         /// </summary>
-        protected List<GLogicNodeWrapper> mSubNodes = new List<GLogicNodeWrapper>();
+        protected List<GLogicNodeWrapper> mSubNodes = new List<GLogicNodeWrapper>(0);
 
         /// <summary>
         /// 目前将会被执行的异步节点修改操作
         /// </summary>
-        private List<LogicNodeUpdateOperation> mAsyncNodeOps = new List<LogicNodeUpdateOperation>();
+        private List<LogicNodeUpdateOperation> mAsyncNodeOps = new List<LogicNodeUpdateOperation>(0);
 
         /// <summary>
         /// 子节点和它的名称对应
         /// </summary>
-        private Dictionary<int, IGLogicNode> mNameAndNodeMap = new Dictionary<int, IGLogicNode>();
+        private Dictionary<int, IGLogicNode> mNameAndNodeMap = new Dictionary<int, IGLogicNode>(0);
 
         /// <summary>
         /// 1.将一个LogicNode挂到我身上
@@ -293,6 +272,7 @@ namespace GLogic.M
 
             if (inLogicNode == null)
             {
+                //请替换成你的log函数//
                 Log.LMN.LogUtil.Error("MBLogicNode.AttachNode: inLogicNode is null");
                 return ret;
             }
@@ -315,6 +295,7 @@ namespace GLogic.M
 
             if (inLogicNode == null)
             {
+                //请替换成你的log函数//
                 Log.LMN.LogUtil.Error("MBLogicNode._AttachNodeSync: inLogicNode is null");
                 return ret;
             }
@@ -333,6 +314,7 @@ namespace GLogic.M
                 }
             }
 
+            //请替换成你的log函数//
             System.Diagnostics.Debug.Assert(!foundDuplicate, "MBLogicNode._AttachNodeSync: found duplicated LogicNode -> " + inLogicNode);
 #endif
 
@@ -353,7 +335,15 @@ namespace GLogic.M
                 mNameAndNodeMap.Add(inLogicNode.NodeName, inLogicNode);
             }
 
-            inLogicNode.OnAttached(this);
+            try
+            {
+                inLogicNode.OnAttached(this);
+            }
+            catch (Exception e)
+            {
+                //请替换成你的log函数//
+                Log.LMN.LogUtil.Error("MBLogicNode._AttachNodeSync: Exception: {e.Message}");
+            }
 
             ret = true;
 
@@ -366,6 +356,7 @@ namespace GLogic.M
 
             if (inLogicNode == null)
             {
+                //请替换成你的log函数//
                 Log.LMN.LogUtil.Error("MBLogicNode._AttachNodeAsync: inLogicNode is null");
                 return ret;
             }
@@ -402,6 +393,7 @@ namespace GLogic.M
 
             if (inLogicNode == null)
             {
+                //请替换成你的log函数//
                 Log.LMN.LogUtil.Error("MBLogicNode.DetachNode: inLogicNode is null");
                 return ret;
             }
@@ -424,6 +416,7 @@ namespace GLogic.M
 
             if (inLogicNode == null)
             {
+                //请替换成你的log函数//
                 Log.LMN.LogUtil.Error("MBLogicNode._DetachNodeSync: inLogicNode is null");
                 return ret;
             }
@@ -452,8 +445,20 @@ namespace GLogic.M
                 }
 
                 inLogicNode.NodeStatus = AttachableStatus.Detached;
-                inLogicNode.OnPreDetach(this);
-                inLogicNode.OnDetached(this);
+                
+                try
+                {
+                    //回调PreDetach接口//
+                    inLogicNode.OnPreDetach(this);
+                    //回调Detach接口//
+                    inLogicNode.OnDetached(this);
+                }
+                catch (Exception e)
+                {
+					//请替换成你的log函数//
+                    Log.LMN.LogUtil.Error($"MBLogicNode._DetachAllSubNodesSync: Exception: {e.Message}");
+                }
+
                 inLogicNode.ParentNode = null;
 
                 ret = true;
@@ -468,6 +473,7 @@ namespace GLogic.M
 
             if (inLogicNode == null)
             {
+                //请替换成你的log函数//
                 Log.LMN.LogUtil.Error("MBLogicNode._DetachNodeAsync: inLogicNode is null");
                 return ret;
             }
@@ -544,12 +550,19 @@ namespace GLogic.M
                 //递归进入Detach所有的子节点//
                 wrapper.mLogicNode.DetachAllSubNodes();
 
-                //回调PreDetach接口//
-                wrapper.mLogicNode.OnPreDetach(this);
-
-                //回调Detach接口//
-                wrapper.mLogicNode.OnDetached(this);
-
+                try
+                {
+                    //回调PreDetach接口//
+                    wrapper.mLogicNode.OnPreDetach(this);
+                    //回调Detach接口//
+                    wrapper.mLogicNode.OnDetached(this);
+                }
+                catch (Exception e)
+                {
+                    //请替换成你的log函数//
+                    Log.LMN.LogUtil.Error("MBLogicNode._DetachAllSubNodesSync: Exception: {e.Message}");
+                }
+                
                 wrapper.mLogicNode.ParentNode = null;
             }
 
@@ -652,6 +665,7 @@ namespace GLogic.M
         /// <param name="inLogicNode"></param>
         public virtual void OnDetached(IGLogicNode inLogicNode)
         {
+
         }
 
         #endregion
@@ -667,25 +681,22 @@ namespace GLogic.M
             /// 目标消息监听器
             /// </summary>
             public IGEventListener mListener;
+
             /// <summary>
             /// 添加还是删除
             /// </summary>
             public bool mIsAddOrRemove;
-            /// <summary>
-            /// 监听的消息
-            /// </summary>
-            public int mEventKey;
         }
 
         /// <summary>
         /// 目前将会被执行的异步消息监听器修改操作
         /// </summary>
-        private List<EventListenerUpdateOperation> mAsyncListenerOps = new List<EventListenerUpdateOperation>();
+        private Dictionary<int, List<EventListenerUpdateOperation>> mAsyncListenerOps = new Dictionary<int, List<EventListenerUpdateOperation>>(0);
 
         /// <summary>
         /// 用于保存所有消息ID对应消息监听器列表的信息
         /// </summary>
-        Dictionary<int, List<GEventListenerWrapper>> mEventListenerMap = new Dictionary<int, List<GEventListenerWrapper>>();
+        protected Dictionary<int, List<GEventListenerWrapper>> mEventListenerMap = new Dictionary<int, List<GEventListenerWrapper>>(0);
 
         /// <summary>
         /// 1.向本逻辑节点挂入一个消息监听器，并开始在该节点上监听inEventKey消息
@@ -699,25 +710,10 @@ namespace GLogic.M
         {
             bool ret = false;
 
-            if (IsListenerTreeLocked)
-            {
-                ret = _AttachListenerAsync(inEventKey, inListener);
-            }
-            else
-            {
-                ret = _AttachListenerSync(inEventKey, inListener);
-            }
-
-            return ret;
-        }
-
-        private bool _AttachListenerSync(int inEventKey, IGEventListener inListener)
-        {
-            bool ret = false;
-
             if (inListener == null)
             {
-                Log.LMN.LogUtil.Error("MBLogicNode._AttachListenerSync: inLogicNode is null");
+                //请替换成你的log函数//
+                Log.LMN.LogUtil.Error("MBLogicNode.AttachListener: inListener is null");
                 return ret;
             }
 
@@ -728,14 +724,31 @@ namespace GLogic.M
                 mEventListenerMap.Add(inEventKey, eventListenerList);
             }
 
+            if (mLockedEventIds.Contains(inEventKey))
+            {
+                ret = _AttachListenerAsync(inEventKey, inListener);
+            }
+            else
+            {
+                ret = _AttachListenerSync(eventListenerList, inEventKey, inListener);
+            }
+
+            return ret;
+        }
+
+        private bool _AttachListenerSync(List<GEventListenerWrapper> inEventListenerList, int inEventKey, IGEventListener inListener)
+        {
+            bool ret = false;
+
 #if DEBUG_G_LOGIC_NODE
 
-            for (int i = 0; i < eventListenerList.Count; i++)
+            for (int i = 0; i < inEventListenerList.Count; i++)
             {
-                GEventListenerWrapper wrapper = eventListenerList[i];
+                GEventListenerWrapper wrapper = inEventListenerList[i];
                 if (wrapper.mEventListenerWeakRef.IsAlive
                     && wrapper.mEventListenerWeakRef.Target == inListener)
                 {
+                    //请替换成你的log函数//
                     Log.LMN.LogUtil.Error("MBLogicNode._AttachListenerSync: duplicated -> " + inListener + ", in -> " + this + ", for -> " + inEventKey);
                     return ret;
                 }
@@ -747,10 +760,10 @@ namespace GLogic.M
             GEventListenerWrapper listenerWrapper;
             listenerWrapper.mEventListenerWeakRef = new WeakReference(inListener);
             listenerWrapper.mEventListenerPriority = priority;
-            inListener.ListenerStatus = AttachableStatus.Attached;
+            listenerWrapper.m_AttachableStatus = AttachableStatus.Attached;
 
-            int index = PrioritySortUtil.GetDecSeqRefArrayInsertIndex<GEventListenerWrapper>(priority, eventListenerList);
-            eventListenerList.Insert(index, listenerWrapper);
+            int index = PrioritySortUtil.GetDecSeqRefArrayInsertIndex<GEventListenerWrapper>(priority, inEventListenerList);
+            inEventListenerList.Insert(index, listenerWrapper);
 
             ret = true;
             return ret;
@@ -760,28 +773,17 @@ namespace GLogic.M
         {
             bool ret = false;
 
-            if (inListener == null)
-            {
-                Log.LMN.LogUtil.Error("MBLogicNode._AttachListenerAsync: inLogicNode is null");
-                return ret;
-            }
-
-            //置脏，导致这棵子树需要进入更新流程//
-            IsListenerTreeNeedsUpdate = true;
-            IGLogicNode parent = ParentNode;
-            while (parent != null && !parent.IsListenerTreeNeedsUpdate)
-            {
-                parent.IsListenerTreeNeedsUpdate = true;
-                parent = parent.ParentNode;
-            }
-
             EventListenerUpdateOperation updateOp = new EventListenerUpdateOperation();
             updateOp.mListener = inListener;
             updateOp.mIsAddOrRemove = true;
-            updateOp.mEventKey = inEventKey;
-            mAsyncListenerOps.Add(updateOp);
 
-            inListener.ListenerStatus = AttachableStatus.Attaching;
+            List<EventListenerUpdateOperation> asyncOpList = null;
+            if (!mAsyncListenerOps.TryGetValue(inEventKey, out asyncOpList))
+            {
+                asyncOpList = new List<EventListenerUpdateOperation>();
+                mAsyncListenerOps.Add(inEventKey, asyncOpList);
+            }
+            asyncOpList.Add(updateOp);
 
             ret = true;
             return ret;
@@ -799,42 +801,44 @@ namespace GLogic.M
         {
             bool ret = false;
 
-            if (IsListenerTreeLocked)
+            if (inListener == null)
             {
-                ret = _DetachListenerAsync(inEventKey, inListener);
+                //请替换成你的log函数//
+                Log.LMN.LogUtil.Error("MBLogicNode.DetachListener: inListener is null");
+                return ret;
+            }
+
+            List<GEventListenerWrapper> eventListenerList = null;
+            if (!mEventListenerMap.TryGetValue(inEventKey, out eventListenerList))
+            {
+                //请替换成你的log函数//
+                Log.LMN.LogUtil.Error("MBLogicNode.DetachListener: no event listener for -> {0} on {1}", inEventKey, inListener);
+                return ret;
+            }
+
+            if (mLockedEventIds.Contains(inEventKey))
+            {
+                ret = _DetachListenerAsync(eventListenerList, inEventKey, inListener);
             }
             else
             {
-                ret = _DetachListenerSync(inEventKey, inListener);
+                ret = _DetachListenerSync(eventListenerList, inEventKey, inListener);
             }
 
             return ret;
         }
 
-        private bool _DetachListenerSync(int inEventKey, IGEventListener inListener)
+        private bool _DetachListenerSync(List<GEventListenerWrapper> eventListenerList, int inEventKey, IGEventListener inListener)
         {
             bool ret = false;
 
-            if (inListener == null)
-            {
-                Log.LMN.LogUtil.Error("MBLogicNode._DetachListenerSync: inLogicNode is null");
-                return ret;
-            }
-
-            List<GEventListenerWrapper> listenerWrappers = null;
-            if (!mEventListenerMap.TryGetValue(inEventKey, out listenerWrappers))
-            {
-                Log.LMN.LogUtil.Error("MBLogicNode._DetachListenerSync: no event listener for -> {0} on {1}", inEventKey, inListener);
-                return ret;
-            }
-
             //快速找出需要移除的节点位置,注意这里其实兼顾了同一优先级节点的GC功能//
             int priority = inListener.GetPriority(inEventKey);
-            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GEventListenerWrapper>(priority, listenerWrappers);
+            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GEventListenerWrapper>(priority, eventListenerList);
             List<GEventListenerWrapper> listenersToRemove = new List<GEventListenerWrapper>();
-            for (int i = index; i < listenerWrappers.Count && listenerWrappers[i].PriorityVal == priority; i++)
+            for (int i = index; i < eventListenerList.Count && eventListenerList[i].PriorityVal == priority; i++)
             {
-                GEventListenerWrapper wrapper = listenerWrappers[i];
+                GEventListenerWrapper wrapper = eventListenerList[i];
                 object listenerObj = wrapper.mEventListenerWeakRef.Target;
                 if (listenerObj == null || listenerObj == inListener)
                 {
@@ -844,51 +848,32 @@ namespace GLogic.M
 
             for (int i = 0; i < listenersToRemove.Count; i++)
             {
-                listenerWrappers.Remove(listenersToRemove[i]);
+                eventListenerList.Remove(listenersToRemove[i]);
             }
-
-            inListener.ListenerStatus = AttachableStatus.Detached;
 
             ret = listenersToRemove.Count != 0;
             return ret;
         }
 
-        private bool _DetachListenerAsync(int inEventKey, IGEventListener inListener)
+        private bool _DetachListenerAsync(List<GEventListenerWrapper> eventListenerList, int inEventKey, IGEventListener inListener)
         {
             bool ret = false;
 
-            if (inListener == null)
-            {
-                Log.LMN.LogUtil.Error("MBLogicNode._DetachListenerAsync: inLogicNode is null");
-                return ret;
-            }
-
-            //置脏，导致这棵子树需要进入更新流程//
-            IsListenerTreeNeedsUpdate = true;
-            IGLogicNode parent = ParentNode;
-            while (parent != null && !parent.IsListenerTreeNeedsUpdate)
-            {
-                parent.IsListenerTreeNeedsUpdate = true;
-                parent = parent.ParentNode;
-            }
-
-            List<GEventListenerWrapper> listenerWrappers = null;
-            if (!mEventListenerMap.TryGetValue(inEventKey, out listenerWrappers))
-            {
-                Log.LMN.LogUtil.Error("MBLogicNode._DetachListenerAsync: no event listener for -> {0} on {1}", inEventKey, inListener);
-                return ret;
-            }
-
             //快速找出需要移除的节点位置//
             int priority = inListener.GetPriority(inEventKey);
-            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GEventListenerWrapper>(priority, listenerWrappers);
-            for (int i = index; i < listenerWrappers.Count && listenerWrappers[i].PriorityVal == priority; i++)
+            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GEventListenerWrapper>(priority, eventListenerList);
+            for (int i = index; i < eventListenerList.Count && eventListenerList[i].PriorityVal == priority; i++)
             {
-                GEventListenerWrapper wrapper = listenerWrappers[i];
+                GEventListenerWrapper wrapper = eventListenerList[i];
                 object listenerObj = wrapper.mEventListenerWeakRef.Target;
                 if (listenerObj == inListener)
                 {
-                    inListener.ListenerStatus = AttachableStatus.Detaching;
+                    GEventListenerWrapper newWrapper = new GEventListenerWrapper();
+                    newWrapper.mEventListenerWeakRef = wrapper.mEventListenerWeakRef;
+                    newWrapper.mEventListenerPriority = wrapper.mEventListenerPriority;
+                    newWrapper.m_AttachableStatus = AttachableStatus.Detaching;
+
+                    eventListenerList[i] = newWrapper;
                     ret = true;
                     break;
                 }
@@ -899,8 +884,14 @@ namespace GLogic.M
                 EventListenerUpdateOperation updateOp = new EventListenerUpdateOperation();
                 updateOp.mListener = inListener;
                 updateOp.mIsAddOrRemove = false;
-                updateOp.mEventKey = inEventKey;
-                mAsyncListenerOps.Add(updateOp);
+                
+                List<EventListenerUpdateOperation> asyncOpList = null;
+                if (!mAsyncListenerOps.TryGetValue(inEventKey, out asyncOpList))
+                {
+                    asyncOpList = new List<EventListenerUpdateOperation>();
+                    mAsyncListenerOps.Add(inEventKey, asyncOpList);
+                }
+                asyncOpList.Add(updateOp);
             }
 
             return ret;
@@ -918,6 +909,13 @@ namespace GLogic.M
 
             if (inEvt == null)
             {
+                return ret;
+            }
+
+            if (inEvt.IsAutoRecycle && inEvt.IsReadyToRecycle)
+            {
+                //请替换成你的log函数//
+                Log.LMN.LogUtil.Error("MBLogicNode.SendEventSync: sending recycled event, key: {0} on: {1}", inEvt.EventKey, this);
                 return ret;
             }
 
@@ -940,6 +938,7 @@ namespace GLogic.M
             DispatchAnEvent(inEvt);
             TryToRecycleThisEvent(inEvt);
 
+
             ret = true;
             return ret;
         }
@@ -950,8 +949,8 @@ namespace GLogic.M
         /// </summary>
         /// <returns><c>true</c>, if event async was sent, <c>false</c> otherwise.</returns>
         /// <param name="inEvt">In evt.</param>
-        /// <param name="inCachUpWhenInactive">If set to <c>true</c> in cach up when inactive.</param>
-        public virtual bool SendEventAsync(IGEvent inEvt, bool inCachUpWhenInactive = false)
+        /// <param name="inCacheUpWhenInactive">If set to <c>true</c> in cache up when inactive.</param>
+        public virtual bool SendEventAsync(IGEvent inEvt, bool inCacheUpWhenInactive = false)
         {
             bool ret = false;
 
@@ -960,10 +959,17 @@ namespace GLogic.M
                 return ret;
             }
 
+            if (inEvt.IsAutoRecycle && inEvt.IsReadyToRecycle)
+            {
+                //请替换成你的log函数//
+                Log.LMN.LogUtil.Error("MBLogicNode.SendEventAsync: sending recycled event, key: {0} on: {1}", inEvt.EventKey, this);
+                return ret;
+            }
+
             if (NodeStatus != AttachableStatus.Attached)
             {
                 //这种时候发送消息是不成功的，这个消息要准备被释放//
-                if(inEvt.IsAutoRecycle)
+                if (inEvt.IsAutoRecycle)
                 {
                     inEvt.IsReadyToRecycle = true;
                 }
@@ -971,7 +977,7 @@ namespace GLogic.M
                 return ret;
             }
 
-            if (!IsNodeActive && !inCachUpWhenInactive)
+            if (!IsNodeActive && !inCacheUpWhenInactive)
             {
                 return ret;
             }
@@ -999,12 +1005,12 @@ namespace GLogic.M
         /// <summary>
         /// 消息队列双buffer, 奇数帧
         /// </summary>
-        protected List<IGEvent> mEventQueueFrameOdd = new List<IGEvent>();
+        protected readonly List<IGEvent> mEventQueueFrameOdd = new List<IGEvent>();
 
         /// <summary>
         /// 消息队列双buffer, 偶数帧
         /// </summary>
-        protected List<IGEvent> mEventQueueFrameEven = new List<IGEvent>();
+        protected readonly List<IGEvent> mEventQueueFrameEven = new List<IGEvent>();
 
         /// <summary>
         /// 当前帧的用于缓存消息的消息队列
@@ -1059,47 +1065,12 @@ namespace GLogic.M
                         }
                     }
                 }
+
                 mAsyncNodeOps.Clear();
             }
 
             //对树结构解锁, 注意这里不是递归进，因为这个方法本身在递归进//
             mIsNodeTreeLocked = false;
-        }
-
-        /// <summary>
-        /// 更新Listener节点树
-        /// </summary>
-        public void UpdateListenerTree()
-        {
-            if (!IsNodeActive)
-            {
-                return;
-            }
-
-            if (IsListenerTreeNeedsUpdate)
-            {
-                IsListenerTreeNeedsUpdate = false;
-
-                //注意，这个Update是深度优先的，防止子节点的异步操作被跳过//
-                for (int i = 0; i < mSubNodes.Count; i++)
-                {
-                    mSubNodes[i].mLogicNode.UpdateListenerTree();
-                }
-
-                for (int i = 0; i < mAsyncListenerOps.Count; i++)
-                {
-                    EventListenerUpdateOperation op = mAsyncListenerOps[i];
-                    if (op.mIsAddOrRemove)
-                    {
-                        _AttachListenerSync(op.mEventKey, op.mListener);
-                    }
-                    else
-                    {
-                        _DetachListenerSync(op.mEventKey, op.mListener);
-                    }
-                }
-                mAsyncListenerOps.Clear();
-            }
         }
 
         /// <summary>
@@ -1135,6 +1106,7 @@ namespace GLogic.M
                 DispatchAnEvent(evt);
                 TryToRecycleThisEvent(evt);
             }
+
             mEventQueueForThisFrame.Clear();
 
             if (AsEventDispatcher)
@@ -1142,8 +1114,8 @@ namespace GLogic.M
                 for (int i = 0; i < mSubNodes.Count; i++)
                 {
                     GLogicNodeWrapper wrapper = mSubNodes[i];
-                    if (wrapper.mLogicNode.NodeStatus != AttachableStatus.Detaching
-                        && wrapper.mLogicNode.IsNodeActive)
+                    if (wrapper.mLogicNode.NodeStatus != AttachableStatus.Detaching 
+						&& wrapper.mLogicNode.IsNodeActive)
                     {
                         wrapper.mLogicNode.DispatchEvents();
                     }
@@ -1159,7 +1131,10 @@ namespace GLogic.M
         public virtual void TryToRecycleThisEvent(IGEvent inEvent)
         {
             //如果是自动释放类消息，那这里标记它可以释放了//
-            if (inEvent.IsAutoRecycle) inEvent.IsReadyToRecycle = true;
+            if (inEvent.IsAutoRecycle)
+            {
+                inEvent.IsReadyToRecycle = true;
+            }
         }
 
         /// <summary>
@@ -1168,7 +1143,7 @@ namespace GLogic.M
         /// <param name="inEvent">Evt.</param>
         public virtual bool DispatchAnEvent(IGEvent inEvent)
         {
-            if(AsEventDispatcher)
+            if (AsEventDispatcher)
             {
                 if (TriggerEvent(inEvent))
                 {
@@ -1178,8 +1153,7 @@ namespace GLogic.M
                 for (int i = 0; i < mSubNodes.Count; i++)
                 {
                     GLogicNodeWrapper wrapper = mSubNodes[i];
-                    if (wrapper.mLogicNode.NodeStatus != AttachableStatus.Detaching
-                        && wrapper.mLogicNode.IsNodeActive)
+                    if (wrapper.mLogicNode.NodeStatus != AttachableStatus.Detaching && wrapper.mLogicNode.IsNodeActive)
                     {
                         if (wrapper.mLogicNode.DispatchAnEvent(inEvent))
                         {
@@ -1199,30 +1173,60 @@ namespace GLogic.M
         /// <param name="inEvent">Evt.</param>
         public bool TriggerEvent(IGEvent inEvent)
         {
-            List<GEventListenerWrapper> listenerList = null;
-            if (mEventListenerMap.TryGetValue(inEvent.EventKey, out listenerList))
+            bool ret = false;
+            
+            if (mEventListenerMap.TryGetValue(inEvent.EventKey, out List<GEventListenerWrapper> listenerList))
             {
+                mLockedEventIds.Add(inEvent.EventKey);
+
+                //1.正常的HandleEvent，如果产生了针对当前listenerList的增删操作的话，会进入mAsyncListenerOps//
                 for (int i = 0; i < listenerList.Count; i++)
                 {
                     GEventListenerWrapper wrapper = listenerList[i];
                     IGEventListener listener = wrapper.mEventListenerWeakRef.Target as IGEventListener;
                     try
                     {
+                        //在这个HandleEvent中如果产生了针对本当前listenerList的增删操作的话，会进入mAsyncListenerOps//
                         if (listener != null
-                            && listener.ListenerStatus != AttachableStatus.Detaching
+                            && wrapper.m_AttachableStatus != AttachableStatus.Detaching
                             && listener.HandleEvent(inEvent))
                         {
                             //说明这个监听器要求拦截消息，终止消息的继续广播//
-                            return true;
+                            ret = true;
+                            break;
                         }
                     }
                     catch (Exception e)
                     {
-                        Log.LMN.LogUtil.Error("MBLogicNode.TriggerEvent: listener -> {0}, excepton -> {1}", listener, e);
+                        //请替换成你的log函数//
+                        Log.LMN.LogUtil.Error("MBLogicNode.TriggerEvent: listener -> {0}, exception -> {1}", listener, e);
                     }
                 }
+
+                if (mAsyncListenerOps.TryGetValue(inEvent.EventKey, out List<EventListenerUpdateOperation> asyncOps))
+                {
+                    mAsyncListenerOps.Remove(inEvent.EventKey);
+                    if (asyncOps != null && asyncOps.Count != 0)
+                    {
+                        for (int i = 0; i < asyncOps.Count; i++)
+                        {
+                            EventListenerUpdateOperation op = asyncOps[i];
+                            if (op.mIsAddOrRemove)
+                            {
+                                _AttachListenerSync(listenerList, inEvent.EventKey, op.mListener);
+                            }
+                            else
+                            {
+                                _DetachListenerSync(listenerList, inEvent.EventKey, op.mListener);
+                            }
+                        }
+                    }
+                }
+
+                mLockedEventIds.Remove(inEvent.EventKey);
             }
-            return false;
+
+            return ret;
         }
 
         /// <summary>

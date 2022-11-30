@@ -89,12 +89,6 @@ namespace GLogic
         /// <param name="inEventKey"></param>
         /// <returns></returns>
         int GetPriority(int inEventKey);
-
-        /// <summary>
-        /// 消息监听器的当前状态，不要手动去赋值
-        /// </summary>
-        /// <value>The node status.</value>
-        AttachableStatus ListenerStatus { get; set; }
     }
 
     /// <summary>
@@ -102,6 +96,8 @@ namespace GLogic
     /// </summary>
     public interface IGLogicNode
     {
+        #region 逻辑节点属性+状态
+
         /// <summary>
         /// 逻辑节点的名称，默认是0
         /// 如果是0，那上层逻辑节点认为这个节点不需要GetNodeByName支持
@@ -125,12 +121,6 @@ namespace GLogic
         /// 在发生了 _AttachNodeAsync 的时候就需要递归向根节点置脏
         /// </summary>
         bool IsLogicTreeNeedsUpdate { get; set; }
-
-        /// <summary>
-        /// 消息监听树需不需要更新
-        /// 在发生了 _AttachListenerAsync 的时候就需要递归向根节点置脏
-        /// </summary>
-        bool IsListenerTreeNeedsUpdate { get; set; }
 
         /// <summary>
         /// 1.逻辑节点的执行优先级
@@ -158,13 +148,6 @@ namespace GLogic
         bool IsNodeTreeLocked { get; set; }
 
         /// <summary>
-        /// 1.消息监听器结构锁，非线程锁，用于在广播消息的时候阻止对监听器列表的修改
-        /// 2.当为true的时候AttachListener和DetachListener都会生成异步操作
-        /// 3.在UpdateEvents的时候为真
-        /// </summary>
-        bool IsListenerTreeLocked { get; set; }
-
-        /// <summary>
         /// 返回父节点，根节点返回null
         /// </summary>
         IGLogicNode ParentNode { get; set; }
@@ -173,6 +156,10 @@ namespace GLogic
         /// 返回根节点，根节点返回本身
         /// </summary>
         IGLogicNode RootNode { get; }
+
+        #endregion
+
+        #region 查找/添加/移除 逻辑节点
 
         /// <summary>
         /// 用名字查找一个LogicNode
@@ -208,6 +195,10 @@ namespace GLogic
         /// <returns></returns>
         bool DetachAllSubNodes();
 
+        #endregion
+
+        #region 关联节点回调
+
         /// <summary>
         /// 在挂入逻辑树的时候进行回调
         /// </summary>
@@ -225,6 +216,9 @@ namespace GLogic
         /// </summary>
         /// <param name="inLogicNode"></param>
         void OnDetached(IGLogicNode inLogicNode);
+        #endregion
+
+        #region 消息监听和广播
 
         /// <summary>
         /// 1.向本逻辑节点挂入一个消息监听器，并开始在该节点上监听inEventKey消息
@@ -260,19 +254,18 @@ namespace GLogic
         /// </summary>
         /// <returns><c>true</c>, if event async was sent, <c>false</c> otherwise.</returns>
         /// <param name="inEvt">In evt.</param>
-        /// <param name="inCachUpWhenInactive">If set to <c>true</c> in cach up when inactive.</param>
-        bool SendEventAsync(IGEvent inEvt, bool inCachUpWhenInactive);
+        /// <param name="inCacheUpWhenInactive">If set to <c>true</c> in cach up when inactive.</param>
+        bool SendEventAsync(IGEvent inEvt, bool inCacheUpWhenInactive);
 
+        #endregion
+
+        #region 内部更新接口
+        
         /// <summary>
         /// 更新Logic节点树
         /// 导致 IsNodeTreeLocked 为真
         /// </summary>
         void UpdateLogicTree();
-
-        /// <summary>
-        /// 更新Listener节点树
-        /// </summary>
-        void UpdateListenerTree();
 
         /// <summary>
         /// 引发消息逻辑执行
@@ -319,6 +312,9 @@ namespace GLogic
         /// </summary>
         /// <param name="inDeltaTime"></param>
         void OnLogicNodeUpdate(float inDeltaTime);
+        
+        #endregion
+
     }
 
 
@@ -381,6 +377,7 @@ namespace GLogic
         {
             int ret = GetDecRefSeqArrayIndex(inPriority, inArray);
             for (; ret > 0 && inArray[ret - 1].PriorityVal == inPriority; ret--) { }
+
             return ret;
         }
 
@@ -395,9 +392,9 @@ namespace GLogic
         {
             int ret = GetDecRefSeqArrayIndex(inPriority, inArray);
             for (; ret < inArray.Count && inArray[ret].PriorityVal >= inPriority; ret++) { }
+
             return ret;
         }
-
     }
 
     /// <summary>
@@ -409,14 +406,17 @@ namespace GLogic
         /// 没有被挂入到逻辑树中
         /// </summary>
         Detached,
+
         /// <summary>
         /// 正在从逻辑树中被摘除
         /// </summary>
         Detaching,
+
         /// <summary>
         /// 已经挂入到逻辑树中
         /// </summary>
         Attached,
+
         /// <summary>
         /// 正在挂入到逻辑树中
         /// </summary>
@@ -445,11 +445,11 @@ namespace GLogic
 
         public int mEventListenerPriority;
 
-        public int PriorityVal
-        {
+        public AttachableStatus m_AttachableStatus;
+
+        public int PriorityVal 
+		{
             get { return mEventListenerPriority; }
         }
     }
-
 }
-

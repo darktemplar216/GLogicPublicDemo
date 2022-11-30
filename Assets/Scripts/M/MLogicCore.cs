@@ -74,7 +74,7 @@ namespace GLogic.M
             InitSubNodes();
         }
 
-        public override void OnDestroy()
+        protected override void OnDestroy()
         {
             base.OnDestroy();
             mInstance = null;
@@ -85,7 +85,6 @@ namespace GLogic.M
         public void Update()
         {
             UpdateLogicTree();
-            UpdateListenerTree();
             UpdateEvents();
             OnLogicNodeUpdate(Time.deltaTime);
             SwapEventQueues();
