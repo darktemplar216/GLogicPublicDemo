@@ -321,7 +321,7 @@ namespace GLogic.LMN
             newLogicNodeWrapper.mLogicNode.NodeStatus = AttachableStatus.Attached;
 
             //找出插入位置//
-            int index = PrioritySortUtil.GetDecSeqRefArrayInsertIndex<GLogicNodeWrapper>(inLogicNode.LogicNodePriority, mSubNodes);
+            int index = PrioritySortUtil.GetDecSeqArrayInsertIndex<GLogicNodeWrapper>(inLogicNode.LogicNodePriority, mSubNodes);
             mSubNodes.Insert(index, newLogicNodeWrapper);
 
             //赋值父节点//
@@ -420,7 +420,7 @@ namespace GLogic.LMN
             }
 
             //快速找出节点位置//
-            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GLogicNodeWrapper>(inLogicNode.LogicNodePriority, mSubNodes);
+            int index = PrioritySortUtil.GetDecSeqArrayFirstIndex<GLogicNodeWrapper>(inLogicNode.LogicNodePriority, mSubNodes);
             int indexToRemove = -1;
             for (int i = index; i < mSubNodes.Count && mSubNodes[i].PriorityVal == inLogicNode.LogicNodePriority; i++)
             {
@@ -477,7 +477,7 @@ namespace GLogic.LMN
             }
 
             //快速找出节点位置//
-            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GLogicNodeWrapper>(inLogicNode.LogicNodePriority, mSubNodes);
+            int index = PrioritySortUtil.GetDecSeqArrayFirstIndex<GLogicNodeWrapper>(inLogicNode.LogicNodePriority, mSubNodes);
             for (int i = index; i < mSubNodes.Count && mSubNodes[i].PriorityVal == inLogicNode.LogicNodePriority; i++)
             {
                 GLogicNodeWrapper wrapper = mSubNodes[i];
@@ -760,7 +760,7 @@ namespace GLogic.LMN
             listenerWrapper.mEventListenerPriority = priority;
             listenerWrapper.m_AttachableStatus = AttachableStatus.Attached;
 
-            int index = PrioritySortUtil.GetDecSeqRefArrayInsertIndex<GEventListenerWrapper>(priority, inEventListenerList);
+            int index = PrioritySortUtil.GetDecSeqArrayInsertIndex<GEventListenerWrapper>(priority, inEventListenerList);
             inEventListenerList.Insert(index, listenerWrapper);
 
             ret = true;
@@ -832,7 +832,7 @@ namespace GLogic.LMN
 
             //快速找出需要移除的节点位置,注意这里其实兼顾了同一优先级节点的GC功能//
             int priority = inListener.GetPriority(inEventKey);
-            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GEventListenerWrapper>(priority, eventListenerList);
+            int index = PrioritySortUtil.GetDecSeqArrayFirstIndex<GEventListenerWrapper>(priority, eventListenerList);
             List<GEventListenerWrapper> listenersToRemove = new List<GEventListenerWrapper>();
             for (int i = index; i < eventListenerList.Count && eventListenerList[i].PriorityVal == priority; i++)
             {
@@ -859,7 +859,7 @@ namespace GLogic.LMN
 
             //快速找出需要移除的节点位置//
             int priority = inListener.GetPriority(inEventKey);
-            int index = PrioritySortUtil.GetDecSeqRefArrayFirstIndex<GEventListenerWrapper>(priority, eventListenerList);
+            int index = PrioritySortUtil.GetDecSeqArrayFirstIndex<GEventListenerWrapper>(priority, eventListenerList);
             for (int i = index; i < eventListenerList.Count && eventListenerList[i].PriorityVal == priority; i++)
             {
                 GEventListenerWrapper wrapper = eventListenerList[i];

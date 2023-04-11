@@ -333,17 +333,30 @@ namespace GLogic
 
         /// <summary>
         /// 在降序列表里面定位一个优先级段的任意位置
+        /// 注意：这里得到的是一个用于插入 inPriority 的最近段中的任意位置，不是 inPriority 本身要插入的位置
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="inPriority"></param>
         /// <param name="inArray"></param>
         /// <returns></returns>
-        public static int GetDecRefSeqArrayIndex<T>(int inPriority, List<T> inArray) where T : IPriorityComparable
+        public static int _GetDecSeqArrayNearestRefIndex<T>(int inPriority, List<T> inArray) where T : IPriorityComparable
         {
             int upperBound = inArray.Count;
             int lowerBound = 0;
 
+            // 0 + 99 -> 0
+            // 0 0 + 99 -> 0
+            // 0 0 0 + 99 -> 0
+            // 99 + 0 -> 0
+            // 99 99 + 0 -> 1
+            // 99 99 99 + 0 -> 2
+            // 99 50 + 50 -> 1
+            // 99 50 0 + 50 -> 1
+            // 99 49 0 + 50 -> 0
+
             int ret = 0;
+            int lastRet = ret;
+
             while (lowerBound < upperBound)
             {
                 ret = (lowerBound + upperBound) >> 1;
@@ -354,12 +367,14 @@ namespace GLogic
                 }
                 else if (curPriority > inPriority)
                 {
-                    lowerBound = ret + 1;
+                    lowerBound = ret == lastRet ? ret + 1 : ret;
                 }
                 else
                 {
-                    upperBound = ret - 1;
+                    upperBound = ret == lastRet ? ret - 1 : ret;
                 }
+
+                lastRet = ret;
             }
 
             return ret;
@@ -373,11 +388,11 @@ namespace GLogic
         /// <param name="inPriority"></param>
         /// <param name="inArray"></param>
         /// <returns></returns>
-        public static int GetDecSeqRefArrayFirstIndex<T>(int inPriority, List<T> inArray) where T : IPriorityComparable
+        public static int GetDecSeqArrayFirstIndex<T>(int inPriority, List<T> inArray) where T : IPriorityComparable
         {
-            int ret = GetDecRefSeqArrayIndex(inPriority, inArray);
+            int ret = _GetDecSeqArrayNearestRefIndex(inPriority, inArray);
+            // 这段的逻辑主要是找到头在哪里
             for (; ret > 0 && inArray[ret - 1].PriorityVal == inPriority; ret--) { }
-
             return ret;
         }
 
@@ -388,11 +403,12 @@ namespace GLogic
         /// <param name="inPriority"></param>
         /// <param name="inArray"></param>
         /// <returns></returns>
-        public static int GetDecSeqRefArrayInsertIndex<T>(int inPriority, List<T> inArray) where T : IPriorityComparable
+        public static int GetDecSeqArrayInsertIndex<T>(int inPriority, List<T> inArray) where T : IPriorityComparable
         {
-            int ret = GetDecRefSeqArrayIndex(inPriority, inArray);
+            int ret = _GetDecSeqArrayNearestRefIndex(inPriority, inArray);
+            // 这段的逻辑主要是找到头尾在哪里，新加的位置为了保证稳定，要放在区段的头尾
             for (; ret < inArray.Count && inArray[ret].PriorityVal >= inPriority; ret++) { }
-
+            for (; ret > 0 && inArray[ret - 1].PriorityVal < inPriority; ret--) { }
             return ret;
         }
     }
